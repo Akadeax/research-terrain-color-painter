@@ -8,17 +8,24 @@
 #include "Editor/ScriptableEditorWidgets/Public/Components/SinglePropertyView.h"
 #include "Engine/Canvas.h"
 #include "Engine/CanvasRenderTarget2D.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Kismet/KismetRenderingLibrary.h"
 #include "UObject/SavePackage.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 void UTerrainPainter::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	if (TerrainColorRenderTargetAssetSelector)
+	if (TerrainColorOutputDirectorySelector)
 	{
-		TerrainColorRenderTargetAssetSelector->SetObject(this);
-		TerrainColorRenderTargetAssetSelector->SetPropertyName(GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAsset));
+		TerrainColorOutputDirectorySelector->SetObject(this);
+		TerrainColorOutputDirectorySelector->SetPropertyName(GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputDirectory));
+	}
+	if (TerrainColorOutputAssetNameSelector)
+	{
+		TerrainColorOutputAssetNameSelector->SetObject(this);
+		TerrainColorOutputAssetNameSelector->SetPropertyName(GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAssetName));
 	}
 }
 
@@ -29,6 +36,7 @@ void UTerrainPainter::NativeConstruct()
 	if (BakeButton)
 	{
 		BakeButton->OnClicked.AddDynamic(this, &ThisClass::OnBakeClicked);
+		CheckBakeEnabled();
 	}
 
 	CanvasRenderTarget = UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(this, UCanvasRenderTarget2D::StaticClass(), 512, 512);
@@ -37,43 +45,21 @@ void UTerrainPainter::NativeConstruct()
 
 void UTerrainPainter::OnBakeClicked()
 {
-	CanvasRenderTarget->UpdateResource();
-
-	if (!IsTerrainColorOutputAssetPathValid()) return;
+	const TTuple<bool, FString> state{ TryBakeTexture() };
 	
-	const FString rawPath{ TerrainColorOutputAsset.FilePath };
-	const FString fileWithExt{ FPaths::GetCleanFilename(rawPath) };
-	const FString packageFileName{ FPackageName::FilenameToLongPackageName(rawPath) };
-	const FString longPath{ FPackageName::LongPackageNameToFilename(packageFileName, FPackageName::GetAssetPackageExtension()) };
+	FNotificationInfo info(
+		state.Key
+		? FText::FromString(TEXT("Operation succeeded!"))
+		: FText::FromString(state.Value)
+	);
+	info.ExpireDuration = 5.0f;
+	info.bUseSuccessFailIcons = true;
 	
-	UPackage* package{ CreatePackage(*packageFileName) };
-	if (!package)
+	const TSharedPtr<SNotificationItem> notif{ FSlateNotificationManager::Get().AddNotification(info) };
+	if (notif.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create package for texture!"));
-		return;
+		notif->SetCompletionState(state.Key ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
 	}
-
-	UTexture2D* tex{ CanvasRenderTarget->ConstructTexture2D(package, fileWithExt, RF_Public | RF_Standalone) };
-
-	FSavePackageArgs args{};
-	args.TopLevelFlags = RF_Public | RF_Standalone;
-	args.bForceByteSwapping = true;
-	
-	const bool success{ UPackage::SavePackage(
-		package, tex,
-		*longPath,
-		args
-	) };
-	
-	if (!success)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to save texture as package."));
-	}
-	
-	FAssetRegistryModule::AssetCreated(tex);
-	TArray<UObject*> obj{};
-	obj.Add(tex);
-	IContentBrowserSingleton::Get().SyncBrowserToAssets(obj);
 }
 
 void UTerrainPainter::RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height)
@@ -81,19 +67,77 @@ void UTerrainPainter::RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Hei
 	Canvas->DrawText(GEngine->GetMediumFont(), TEXT("AH YES"), 0, 0, 10, 10);
 }
 
+TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
+{
+	CanvasRenderTarget->UpdateResource();
+
+	if (!IsTerrainColorOutputAssetPathValid())
+	{
+		return { false, FString::Printf(
+			TEXT("final asset path '%s' is invalid!"),
+			*(TerrainColorOutputDirectory.Path + TerrainColorOutputAssetName))
+		};
+	}
+	
+	const FString longPackageName{ TerrainColorOutputDirectory.Path + TerrainColorOutputAssetName };
+	
+	if (StaticLoadObject(UObject::StaticClass(), nullptr, *longPackageName) != nullptr)
+	{
+		return { false, FString::Printf(TEXT("File at '%s' already exists!"), *longPackageName) };
+	}
+
+	UPackage* package{ CreatePackage(*longPackageName) };
+	if (!package)
+	{
+		return { false, FString::Printf(TEXT("Failed to create package at %s. Check the file path."), *longPackageName) };
+	}
+
+	UTexture2D* tex{ CanvasRenderTarget->ConstructTexture2D(
+		package,
+		TerrainColorOutputAssetName,
+		RF_Public | RF_Standalone
+	) };
+
+	if (!tex)
+	{
+		return { false, FString::Printf(TEXT("Failed to construct texture at %s."), *longPackageName) };
+	}
+
+	FAssetRegistryModule::AssetCreated(tex);
+	(void)tex->MarkPackageDirty();
+	return { true, TEXT("") };
+}
+
 void UTerrainPainter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	
-	if (PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAsset)) return;
+	const FName changed{ PropertyChangedEvent.MemberProperty->GetFName() };
+	if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputDirectory))
+	{
+		FString outPackageName;
+		if (FPackageName::TryConvertFilenameToLongPackageName(TerrainColorOutputDirectory.Path, outPackageName))
+		{
+			TerrainColorOutputDirectory.Path = outPackageName;
+		}
+		
+		CheckBakeEnabled();
+	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAssetName))
+	{
+		CheckBakeEnabled();
+	}
+}
+
+void UTerrainPainter::CheckBakeEnabled()
+{
 	BakeButton->SetIsEnabled(IsTerrainColorOutputAssetPathValid());
 }
 
 bool UTerrainPainter::IsTerrainColorOutputAssetPathValid() const
 {
-	const FString& filePath{ TerrainColorOutputAsset.FilePath };
-	const FString& dirPath{ FPaths::GetPath(filePath) };
-	const FString& ext{ FPaths::GetExtension(filePath) };
-	
-	return !filePath.IsEmpty() && FPaths::DirectoryExists(dirPath) && !ext.IsEmpty();
+	// TODO: Validate this is valid package (folder)
+	const FString full{ TerrainColorOutputDirectory.Path + TerrainColorOutputAssetName };
+	FPackageName::Valid
+	return FPackageName::IsValidLongPackageName(full);
 }

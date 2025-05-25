@@ -16,7 +16,7 @@ public class ResearchGPP : ModuleRules
 		{
 			PublicDependencyModuleNames.AddRange(new string[]
 			{
-				"Blutility", "ScriptableEditorWidgets", "UMG", "UMGEditor", "ContentBrowser"
+				"Blutility", "ScriptableEditorWidgets", "UMG", "UMGEditor", "ContentBrowser", "Slate"
 			});
 		}
 		

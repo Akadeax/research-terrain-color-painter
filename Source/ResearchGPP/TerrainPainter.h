@@ -17,7 +17,10 @@ class RESEARCHGPP_API UTerrainPainter : public UEditorUtilityWidget
 
 public:
 	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TerrainColorRenderTargetAssetSelector;
+	USinglePropertyView* TerrainColorOutputDirectorySelector;
+
+	UPROPERTY(meta=(BindWidget))
+	USinglePropertyView* TerrainColorOutputAssetNameSelector;
 
 	UPROPERTY(meta=(BindWidget))
 	UButton* BakeButton;
@@ -26,12 +29,16 @@ public:
 	virtual void NativeConstruct() override;
 	
 protected:
-	UPROPERTY(EditInstanceOnly) FFilePath TerrainColorOutputAsset;
+	UPROPERTY(EditDefaultsOnly) FDirectoryPath TerrainColorOutputDirectory;
+	UPROPERTY(EditDefaultsOnly) FString TerrainColorOutputAssetName;
 	UPROPERTY() UCanvasRenderTarget2D* CanvasRenderTarget{};
 	
 	UFUNCTION() void OnBakeClicked();
 	UFUNCTION() void RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height);
+
+	TTuple<bool, FString> TryBakeTexture();
 	
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void CheckBakeEnabled();
 	bool IsTerrainColorOutputAssetPathValid() const;
 };
