@@ -17,11 +17,15 @@ class RESEARCHGPP_API UTerrainPainter : public UEditorUtilityWidget
 
 public:
 	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TerrainColorOutputDirectorySelector;
+	USinglePropertyView* TerrainColorOutputDirectoryPV;
 
 	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TerrainColorOutputAssetNameSelector;
+	USinglePropertyView* TerrainColorOutputAssetNamePV;
 
+	UPROPERTY(meta=(BindWidget))
+	USinglePropertyView* TextureSizePV;
+
+	
 	UPROPERTY(meta=(BindWidget))
 	UButton* BakeButton;
 
@@ -29,9 +33,9 @@ public:
 	virtual void NativeConstruct() override;
 	
 protected:
-	UPROPERTY(EditDefaultsOnly) FDirectoryPath TerrainColorOutputDirectory;
-	UPROPERTY(EditDefaultsOnly) FString TerrainColorOutputAssetName;
-	UPROPERTY() UCanvasRenderTarget2D* CanvasRenderTarget{};
+	UPROPERTY(EditDefaultsOnly) FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
+	UPROPERTY(EditDefaultsOnly) FString TerrainColorOutputAssetName{ "T_" };
+	UPROPERTY(EditDefaultsOnly) FIntPoint TextureSize{ 512, 512 };
 	
 	UFUNCTION() void OnBakeClicked();
 	UFUNCTION() void RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height);
@@ -40,5 +44,12 @@ protected:
 	
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void CheckBakeEnabled();
-	bool IsTerrainColorOutputAssetPathValid() const;
+	bool InputParametersValid() const;
+
+	/**
+	 * Creates a texture and paints the terrain color on it. This must be both repackaged and object flags must be set.
+	 * @return The texture with no flags in transient outer
+	 */
+	UTexture2D* CreateTerrainColorTexture();
+	FColor ComputeColorForPixel(int32 X, int32 Y);
 };
