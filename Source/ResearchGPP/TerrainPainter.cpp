@@ -65,6 +65,7 @@ void UTerrainPainter::OnBakeClicked()
 void UTerrainPainter::RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height)
 {
 	Canvas->DrawText(GEngine->GetMediumFont(), TEXT("AH YES"), 0, 0, 10, 10);
+	Canvas->DrawText(GEngine->GetMediumFont(), TEXT("The negotiator"), 0, Height / 2, 5, 5);
 }
 
 TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
@@ -79,7 +80,7 @@ TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
 		};
 	}
 	
-	const FString longPackageName{ TerrainColorOutputDirectory.Path + TerrainColorOutputAssetName };
+	const FString longPackageName{ FPaths::Combine(TerrainColorOutputDirectory.Path, TerrainColorOutputAssetName) };
 	
 	if (StaticLoadObject(UObject::StaticClass(), nullptr, *longPackageName) != nullptr)
 	{
@@ -103,8 +104,14 @@ TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
 		return { false, FString::Printf(TEXT("Failed to construct texture at %s."), *longPackageName) };
 	}
 
+
 	FAssetRegistryModule::AssetCreated(tex);
-	(void)tex->MarkPackageDirty();
+	const FString fileName{ FPackageName::LongPackageNameToFilename(longPackageName, FPackageName::GetAssetPackageExtension()) };
+	if (!UPackage::SavePackage(package, tex, *fileName, {}))
+	{
+		return { false, FString::Printf(TEXT("Failed to save package at %s."), *fileName) };
+	}
+	
 	return { true, TEXT("") };
 }
 
@@ -136,8 +143,12 @@ void UTerrainPainter::CheckBakeEnabled()
 
 bool UTerrainPainter::IsTerrainColorOutputAssetPathValid() const
 {
-	// TODO: Validate this is valid package (folder)
-	const FString full{ TerrainColorOutputDirectory.Path + TerrainColorOutputAssetName };
-	FPackageName::Valid
+	FString folderAbsolutePath;
+	const bool success{ FPackageName::TryConvertLongPackageNameToFilename(TerrainColorOutputDirectory.Path, folderAbsolutePath) };
+	if (!success) return false;
+	
+	if (!FPaths::DirectoryExists(folderAbsolutePath)) return false;
+	
+	const FString full{ FPaths::Combine(TerrainColorOutputDirectory.Path, TerrainColorOutputAssetName) };
 	return FPackageName::IsValidLongPackageName(full);
 }
