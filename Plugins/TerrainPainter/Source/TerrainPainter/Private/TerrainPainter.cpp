@@ -14,13 +14,14 @@ void FTerrainPainterModule::StartupModule()
 
 void FTerrainPainterModule::ShutdownModule()
 {
-	// The objects in this unregister menu owners when destroyed (RAII)
-	UToolMenus::UnregisterOwner(TerrainPainterOwner);
+	UToolMenus::UnregisterOwner(FToolMenuOwner(this));
 	UToolMenus::UnRegisterStartupCallback(this);
 }
 
 void FTerrainPainterModule::RegisterMenus()
 {
+	FToolMenuOwnerScoped menuOwnerScoped(this);
+	
 	// Extend an existing menu
 	UToolMenu* menu{ UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window") };
 
@@ -35,11 +36,9 @@ void FTerrainPainterModule::RegisterMenus()
 		"MenuEntryOpenTerrainPainter",
 		FText::FromString(TEXT("Open Terrain Painter")),
 		FText::FromString(TEXT("Open Terrain Painter, which can bake terrain color textures from a node graph")),
-		FSlateIcon(),
-		 FToolUIActionChoice(FExecuteAction::CreateRaw(this, &FTerrainPainterModule::OpenTerrainPainterWidget))
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Play"),
+		FToolUIActionChoice(FExecuteAction::CreateRaw(this, &FTerrainPainterModule::OpenTerrainPainterWidget))
 	);
-
-	TerrainPainterOwner = FToolMenuOwner("TerrainPainter/TerrainPainterWidget");
 }
 
 void FTerrainPainterModule::OpenTerrainPainterWidget()

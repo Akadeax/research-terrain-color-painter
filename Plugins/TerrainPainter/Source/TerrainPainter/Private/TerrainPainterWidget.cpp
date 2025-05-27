@@ -168,6 +168,7 @@ UTexture2D* UTerrainPainterWidget::CreateTerrainColorTexture()
 		TextureSize.X, TextureSize.Y, 1, 1,
 		TSF_BGRA8, reinterpret_cast<uint8*>(pixelData.GetData())
 	);
+	tex->MipGenSettings = TMGS_NoMipmaps;
 
 	tex->UpdateResource();
 

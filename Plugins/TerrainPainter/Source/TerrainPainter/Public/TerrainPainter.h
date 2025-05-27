@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 
-class FTerrainPainterModule : public IModuleInterface
+class FTerrainPainterModule final : public IModuleInterface
 {
 public:
 
@@ -16,7 +16,4 @@ private:
 	void RegisterMenus();
 
 	void OpenTerrainPainterWidget();
-
-	// TODO: Try this with scoped again, can now be docked. Wtf?
-	FToolMenuOwner TerrainPainterOwner;
 };
