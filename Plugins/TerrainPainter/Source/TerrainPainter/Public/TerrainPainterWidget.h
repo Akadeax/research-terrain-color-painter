@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Editor/Blutility/Classes/EditorUtilityWidget.h"
-#include "TerrainPainter.generated.h"
+#include "TerrainPainterWidget.generated.h"
 
 class UCanvasRenderTarget2D;
 class UButton;
 class USinglePropertyView;
 
 UCLASS()
-class RESEARCHGPP_API UTerrainPainter : public UEditorUtilityWidget
+class TERRAINPAINTER_API UTerrainPainterWidget : public UEditorUtilityWidget
 {
 	GENERATED_BODY()
 

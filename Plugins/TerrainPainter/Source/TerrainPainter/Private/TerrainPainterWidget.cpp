@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "TerrainPainter.h"
+#include "TerrainPainterWidget.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/Button.h"
@@ -11,7 +11,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "PropertyViewHelpers.h"
 
-void UTerrainPainter::NativePreConstruct()
+void UTerrainPainterWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
@@ -20,7 +20,7 @@ void UTerrainPainter::NativePreConstruct()
 	SetupSinglePropertyView(this, TextureSizePV, GET_MEMBER_NAME_CHECKED(ThisClass, TextureSize));
 }
 
-void UTerrainPainter::NativeConstruct()
+void UTerrainPainterWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	
@@ -31,7 +31,7 @@ void UTerrainPainter::NativeConstruct()
 	}
 }
 
-void UTerrainPainter::OnBakeClicked()
+void UTerrainPainterWidget::OnBakeClicked()
 {
 	const TTuple<bool, FString> state{ TryBakeTexture() };
 	
@@ -50,13 +50,13 @@ void UTerrainPainter::OnBakeClicked()
 	}
 }
 
-void UTerrainPainter::RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height)
+void UTerrainPainterWidget::RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height)
 {
 	Canvas->DrawText(GEngine->GetMediumFont(), TEXT("AH YES"), 0, 0, 10, 10);
 	Canvas->DrawText(GEngine->GetMediumFont(), TEXT("The negotiator"), 0, Height / 2, 5, 5);
 }
 
-TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
+TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 {
 	if (!InputParametersValid())
 	{
@@ -99,7 +99,7 @@ TTuple<bool, FString> UTerrainPainter::TryBakeTexture()
 	return { true, TEXT("") };
 }
 
-void UTerrainPainter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	
@@ -120,12 +120,12 @@ void UTerrainPainter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 }
 
-void UTerrainPainter::CheckBakeEnabled()
+void UTerrainPainterWidget::CheckBakeEnabled()
 {
 	BakeButton->SetIsEnabled(InputParametersValid());
 }
 
-bool UTerrainPainter::InputParametersValid() const
+bool UTerrainPainterWidget::InputParametersValid() const
 {
 	FString folderAbsolutePath;
 	const bool folderPathValid{ FPackageName::TryConvertLongPackageNameToFilename(TerrainColorOutputDirectory.Path, folderAbsolutePath) };
@@ -144,7 +144,7 @@ bool UTerrainPainter::InputParametersValid() const
 	return true;
 }
 
-UTexture2D* UTerrainPainter::CreateTerrainColorTexture()
+UTexture2D* UTerrainPainterWidget::CreateTerrainColorTexture()
 {
 	UTexture2D* tex{ NewObject<UTexture2D>(GetTransientPackage(), *TerrainColorOutputAssetName, RF_NoFlags) };
 	if (!tex) return nullptr;
@@ -163,14 +163,17 @@ UTexture2D* UTerrainPainter::CreateTerrainColorTexture()
 		}
 	}
 
-	tex->Source.Init(TextureSize.X, TextureSize.Y, 1, 1, TSF_BGRA8, reinterpret_cast<uint8*>(pixelData.GetData()));
+	tex->Source.Init(
+		TextureSize.X, TextureSize.Y, 1, 1,
+		TSF_BGRA8, reinterpret_cast<uint8*>(pixelData.GetData())
+	);
 
 	tex->UpdateResource();
 
 	return tex;
 }
 
-FColor UTerrainPainter::ComputeColorForPixel(int32 X, int32 Y)
+FColor UTerrainPainterWidget::ComputeColorForPixel(int32 X, int32 Y)
 {
 	const float normX{ static_cast<float>(X) / static_cast<float>(TextureSize.X) };
 	const float normY{ static_cast<float>(Y) / static_cast<float>(TextureSize.Y) };
