@@ -8,7 +8,7 @@
 
 class UCanvasRenderTarget2D;
 class UButton;
-class USinglePropertyView;
+class UDetailsView;
 
 UCLASS()
 class TERRAINPAINTER_API UTerrainPainterWidget : public UEditorUtilityWidget
@@ -17,14 +17,7 @@ class TERRAINPAINTER_API UTerrainPainterWidget : public UEditorUtilityWidget
 
 public:
 	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TerrainColorOutputDirectoryPV;
-
-	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TerrainColorOutputAssetNamePV;
-
-	UPROPERTY(meta=(BindWidget))
-	USinglePropertyView* TextureSizePV;
-
+	UDetailsView* TextureDetailsView; 
 	
 	UPROPERTY(meta=(BindWidget))
 	UButton* BakeButton;
@@ -33,9 +26,9 @@ public:
 	virtual void NativeConstruct() override;
 	
 protected:
-	UPROPERTY(EditDefaultsOnly) FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
-	UPROPERTY(EditDefaultsOnly) FString TerrainColorOutputAssetName{ "T_" };
-	UPROPERTY(EditDefaultsOnly) FIntPoint TextureSize{ 512, 512 };
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FString TerrainColorOutputAssetName{ "T_" };
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FIntPoint TextureSize{ 512, 512 };
 	
 	UFUNCTION() void OnBakeClicked();
 	UFUNCTION() void RenderTerrainColor(UCanvas* Canvas, int32 Width, int32 Height);

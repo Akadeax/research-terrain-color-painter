@@ -4,7 +4,6 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/Button.h"
-#include "Editor/ScriptableEditorWidgets/Public/Components/SinglePropertyView.h"
 #include "Engine/Canvas.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "UObject/SavePackage.h"
@@ -15,9 +14,11 @@ void UTerrainPainterWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	SetupSinglePropertyView(this, TerrainColorOutputDirectoryPV, GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputDirectory));
-	SetupSinglePropertyView(this, TerrainColorOutputAssetNamePV, GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAssetName));
-	SetupSinglePropertyView(this, TextureSizePV, GET_MEMBER_NAME_CHECKED(ThisClass, TextureSize));
+	SetupDetailsView(this, TextureDetailsView, { "TextureDetails" }, {
+		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputDirectory),
+		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAssetName),
+		GET_MEMBER_NAME_CHECKED(ThisClass, TextureSize),
+	});
 }
 
 void UTerrainPainterWidget::NativeConstruct()

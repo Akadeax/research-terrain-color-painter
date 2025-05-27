@@ -48,7 +48,10 @@ public class TerrainPainter : ModuleRules
 				"UMG",
 				"UMGEditor",
 				"ContentBrowser",
-				"Slate"
+				"Slate",
+				"ToolMenus",
+				"EditorScriptingUtilities",
+				"UnrealEd"
 			});
 		}
 		
