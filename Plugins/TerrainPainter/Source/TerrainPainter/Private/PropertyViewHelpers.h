@@ -16,8 +16,8 @@ inline void SetupDetailsView(UObject* Object, UDetailsView* DetailsView, const T
 {
 	if (DetailsView)
 	{
-		DetailsView->SetObject(Object);
 		DetailsView->CategoriesToShow  = Categories;
 		DetailsView->PropertiesToShow = Properties;
+		DetailsView->SetObject(Object);
 	}
 }
