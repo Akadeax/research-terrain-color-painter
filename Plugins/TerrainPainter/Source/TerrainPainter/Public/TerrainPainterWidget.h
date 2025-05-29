@@ -16,8 +16,18 @@ USTRUCT(BlueprintType)
 struct FTerrainMapGenerationDataEntry
 {
 	GENERATED_BODY()
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=1)) FVector2f UVCoordinates{ 0.5f, 0.5f };
-	UPROPERTY(EditInstanceOnly) FLinearColor Color{ 1.f, 1.f, 1.f };
+	
+	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=1))
+	FVector2f UVCoordinates{ 0.5f, 0.5f };
+	
+	UPROPERTY(EditInstanceOnly)
+	FLinearColor Color{ 1.f, 1.f, 1.f };
+	
+	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
+	float Intensity{ 1.f };
+	
+	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
+	float DistanceModifier{ 1.f };
 };
 
 UCLASS()
@@ -42,11 +52,19 @@ public:
 	virtual void NativeConstruct() override;
 	
 protected:
-	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
-	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FString TerrainColorOutputAssetName{ "T_TerrainColorMap" };
-	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FIntPoint TextureSize{ 512, 512 };
-	UPROPERTY(EditDefaultsOnly, Category=GenerationData) TArray<FTerrainMapGenerationDataEntry> GenerationData{};
-	UPROPERTY(EditDefaultsOnly, Category=GenerationData) bool ShowPreview{ true };
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails)
+	FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
+	
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails)
+	FString TerrainColorOutputAssetName{ "T_TerrainColorMap" };
+	
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails, meta=(UIMin=32, UIMax=8192, ClampMin=32, ClampMax=8192))
+	FIntPoint TextureSize{ 512, 512 };
+	
+	UPROPERTY(EditDefaultsOnly, Category=GenerationData)
+	TArray<FTerrainMapGenerationDataEntry> GenerationData{};
+
+	UPROPERTY(EditDefaultsOnly) bool ShowPreview{ true };
 
 	UPROPERTY() UTexture2D* PreviewImageTexture{};
 	
@@ -67,4 +85,6 @@ protected:
 	void FillTextureWithTerrainColorMap(UTexture2D* texture);
 	
 	FColor ComputeColorForPixel(int32 X, int32 Y);
+	FColor ComputeCheckerboard(int32 X, int32 Y);
+	FColor ComputeWeightedTerrainColor(int32 X, int32 Y);
 };

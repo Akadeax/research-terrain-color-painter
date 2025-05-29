@@ -2,8 +2,7 @@
 
 #include "TerrainPainterWidget.h"
 
-#include "AssetToolsModule.h"
-#include "ObjectTools.h"
+#include "ColorHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/Button.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -138,6 +137,7 @@ void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			 changed == GET_MEMBER_NAME_CHECKED(ThisClass, GenerationData))
 	{
 		UpdatePreviewTexture();
+		CheckBakeEnabled();
 	}
 	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, ShowPreview))
 	{
@@ -166,6 +166,8 @@ bool UTerrainPainterWidget::InputParametersValid() const
 
 	const bool textureSizeValid{ TextureSize.X > 0 && TextureSize.Y > 0 && TextureSize.X < 8192 && TextureSize.Y < 8192 };
 	if (!textureSizeValid) return false;
+
+	if (GenerationData.Num() == 0) return false;
 	
 	return true;
 }
@@ -178,14 +180,15 @@ void UTerrainPainterWidget::UpdatePreviewTexture(bool forceAspectRecalc)
 	// have to change the mip's content
 	FTexture2DMipMap* mip{ &PreviewImageTexture->GetPlatformData()->Mips[0] };
 
-	bool didResize{ false };
-	if (TextureSize.X != mip->SizeX || TextureSize.Y != mip->SizeY)
+	const bool didSizeChange{ (TextureSize.X != mip->SizeX || TextureSize.Y != mip->SizeY) };
+	bool doResize{ didSizeChange };
+	if (doResize)
 	{
-		didResize = true;
+		doResize = true;
 		// Rebuild this mip; our texture size has changed
 		PreviewImageTexture->ReleaseResource();
 		PreviewImageTexture->GetPlatformData()->Mips.Empty();
-		
+
 		PreviewImageTexture->GetPlatformData()->SizeX = TextureSize.X;
 		PreviewImageTexture->GetPlatformData()->SizeY = TextureSize.Y;
 		
@@ -198,7 +201,7 @@ void UTerrainPainterWidget::UpdatePreviewTexture(bool forceAspectRecalc)
 	}
 
 	USizeBox* box{ Cast<USizeBox>(PreviewImage->GetParent()) };
-	if (box && (didResize || forceAspectRecalc))
+	if (box && (doResize || forceAspectRecalc))
 	{
 		const float aspect{ TextureSize.X / static_cast<float>(TextureSize.Y) };
 		box->SetMinAspectRatio(aspect);
@@ -246,14 +249,39 @@ void UTerrainPainterWidget::FillTextureWithTerrainColorMap(UTexture2D* texture)
 
 FColor UTerrainPainterWidget::ComputeColorForPixel(int32 X, int32 Y)
 {
-	if (GenerationData.Num() > 0)
-	{
-		return FColor(0, 255, 0);
-	}
+	if (GenerationData.IsEmpty()) return ComputeCheckerboard(X, Y);	
+
+	return ComputeWeightedTerrainColor(X, Y); 
+}
+
+FColor UTerrainPainterWidget::ComputeCheckerboard(int32 X, int32 Y)
+{
+	const int min{ FMath::Min(TextureSize.X, TextureSize.Y) };
+	const FVector2f aspectedUV{ static_cast<float>(X) / static_cast<float>(min), static_cast<float>(Y) / static_cast<float>(min) };
+
+	// Draw checkerboard pattern if no generation data
+	constexpr float checkerSize{ 25.f };
+	const FVector2f pos{ aspectedUV * checkerSize };
+	const FIntPoint intPos{ FMath::FloorToInt32(pos.X), FMath::FloorToInt32(pos.Y) };
+	const FIntPoint mod{ intPos.X % 2, intPos.Y % 2 };
+	const bool doColor{ mod.X == 0 || mod.Y == 0 };
+	return doColor ? FColor::Purple : FColor::Black;
+}
+
+FColor UTerrainPainterWidget::ComputeWeightedTerrainColor(int32 X, int32 Y)
+{
+	const FVector2f uv{ static_cast<float>(X) / static_cast<float>(TextureSize.X), static_cast<float>(Y) / static_cast<float>(TextureSize.Y) };
+	constexpr float MAX_UV_DIST{ 1.414213f };
 	
-	const float normX{ static_cast<float>(X) / static_cast<float>(TextureSize.X) };
-	const float normY{ static_cast<float>(Y) / static_cast<float>(TextureSize.Y) };
-	const float blend{ FMath::Clamp((normX + normY) / 2.f, 0.0f, 1.0f) };
-	const FLinearColor color{ 1.0f, 1.0f - blend, 1.0f - blend, 1.0f };
-	return color.ToFColor(false);
+	FLinearColor result{};
+	for (const FTerrainMapGenerationDataEntry& data : GenerationData)
+	{
+		const float dist{ FMath::Clamp(FVector2f::Distance(uv, data.UVCoordinates) * (1.f / data.DistanceModifier), 0, MAX_UV_DIST) };
+		const float normDist{ dist / MAX_UV_DIST };
+		const float invNormDist{ 1.f - normDist };
+		
+		result += data.Color * invNormDist * data.Intensity;
+	}
+	result = NormalizeToMax(result);
+	return result.ToFColor(false);
 }
