@@ -16,13 +16,15 @@ void UTerrainPainterWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	SetupDetailsView(this, TextureDetailsView, { "TextureDetails", "GenerationData" }, {
+	SetupDetailsView(this, TextureDetailsView, {}, {
 		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputDirectory),
 		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorOutputAssetName),
 		GET_MEMBER_NAME_CHECKED(ThisClass, TextureSize),
 		
 		GET_MEMBER_NAME_CHECKED(ThisClass, GenerationData),
 	});
+
+	SetupSinglePropertyView(this, ShowPreviewPV, GET_MEMBER_NAME_CHECKED(ThisClass, ShowPreview));
 
 	if (PreviewImage)
 	{
@@ -50,9 +52,7 @@ void UTerrainPainterWidget::OnBakeClicked()
 	const TTuple<bool, FString> state{ TryBakeTexture() };
 	
 	FNotificationInfo info(
-		state.Key
-		? FText::FromString(TEXT("Operation succeeded!"))
-		: FText::FromString(state.Value)
+		FText::FromString(state.Value)
 	);
 	info.ExpireDuration = 5.0f;
 	info.bUseSuccessFailIcons = true;
@@ -75,11 +75,6 @@ TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 	}
 	
 	const FString longPackageName{ FPaths::Combine(TerrainColorOutputDirectory.Path, TerrainColorOutputAssetName) };
-	
-	// if (StaticLoadObject(UObject::StaticClass(), nullptr, *longPackageName) != nullptr)
-	// {
-	// 	return { false, FString::Printf(TEXT("File at '%s' already exists!"), *longPackageName) };
-	// }
 
 	UPackage* package{ CreatePackage(*longPackageName) };
 	if (!package)
@@ -88,10 +83,12 @@ TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 	}
 
 	UTexture2D* texture{};
+	bool didCreateNew{ false };
 	if (StaticLoadObject(UObject::StaticClass(), nullptr, *longPackageName) == nullptr)
 	{
 		texture = NewObject<UTexture2D>(package, *TerrainColorOutputAssetName, RF_Public | RF_Standalone);
 		if (!texture) return { false, FString::Printf(TEXT("Failed to create new texture object at %s."), *longPackageName) };
+		didCreateNew = true;
 	}
 	else
 	{
@@ -115,7 +112,7 @@ TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 		return { false, FString::Printf(TEXT("Failed to save package at %s."), *fileName) };
 	}
 	
-	return { true, TEXT("") };
+	return { true, didCreateNew ? TEXT("Successfully created new texture!") : TEXT("Successfully overwrote texture!") };
 }
 
 void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -141,6 +138,11 @@ void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			 changed == GET_MEMBER_NAME_CHECKED(ThisClass, GenerationData))
 	{
 		UpdatePreviewTexture();
+	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, ShowPreview))
+	{
+		PreviewImage->SetVisibility(ShowPreview ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (ShowPreview) UpdatePreviewTexture(true);
 	}
 }
 
@@ -170,6 +172,8 @@ bool UTerrainPainterWidget::InputParametersValid() const
 
 void UTerrainPainterWidget::UpdatePreviewTexture(bool forceAspectRecalc)
 {
+	if (!ShowPreview) return;
+	
 	// Make this a pointer instead of a ref (which it normally should be) because we might
 	// have to change the mip's content
 	FTexture2DMipMap* mip{ &PreviewImageTexture->GetPlatformData()->Mips[0] };
@@ -191,8 +195,6 @@ void UTerrainPainterWidget::UpdatePreviewTexture(bool forceAspectRecalc)
 		(void)mip->BulkData.Lock(LOCK_READ_WRITE);
 		mip->BulkData.Realloc(TextureSize.X * TextureSize.Y * sizeof(FColor));
 		mip->BulkData.Unlock();
-
-
 	}
 
 	USizeBox* box{ Cast<USizeBox>(PreviewImage->GetParent()) };

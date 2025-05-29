@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Editor/Blutility/Classes/EditorUtilityWidget.h"
 #include "Components/Image.h"
+#include "Components/SinglePropertyView.h"
 #include "TerrainPainterWidget.generated.h"
 
 class UCanvasRenderTarget2D;
@@ -34,6 +35,9 @@ public:
 	UPROPERTY(meta=(BindWidget))
 	UImage* PreviewImage;
 
+	UPROPERTY(meta=(BindWidget))
+	USinglePropertyView* ShowPreviewPV;
+
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	
@@ -42,6 +46,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FString TerrainColorOutputAssetName{ "T_TerrainColorMap" };
 	UPROPERTY(EditDefaultsOnly, Category=TextureDetails) FIntPoint TextureSize{ 512, 512 };
 	UPROPERTY(EditDefaultsOnly, Category=GenerationData) TArray<FTerrainMapGenerationDataEntry> GenerationData{};
+	UPROPERTY(EditDefaultsOnly, Category=GenerationData) bool ShowPreview{ true };
 
 	UPROPERTY() UTexture2D* PreviewImageTexture{};
 	
