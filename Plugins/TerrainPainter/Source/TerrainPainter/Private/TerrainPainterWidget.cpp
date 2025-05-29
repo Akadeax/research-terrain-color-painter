@@ -91,6 +91,7 @@ TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 	if (StaticLoadObject(UObject::StaticClass(), nullptr, *longPackageName) == nullptr)
 	{
 		texture = NewObject<UTexture2D>(package, *TerrainColorOutputAssetName, RF_Public | RF_Standalone);
+		if (!texture) return { false, FString::Printf(TEXT("Failed to create new texture object at %s."), *longPackageName) };
 	}
 	else
 	{
@@ -101,15 +102,11 @@ TTuple<bool, FString> UTerrainPainterWidget::TryBakeTexture()
 			if (!object || !object->IsA<UTexture2D>()) continue;
 			texture = Cast<UTexture2D>(object);
 		}
+
+		if (!texture) return { false, "This package already exists and is not a Texture2D." };
 	}
 	
 	FillTextureWithTerrainColorMap(texture);
-	
-	if (!texture)
-	{
-		return { false, FString::Printf(TEXT("Failed to construct texture at %s."), *longPackageName) };
-	}
-
 	FAssetRegistryModule::AssetCreated(texture);
 	
 	const FString fileName{ FPackageName::LongPackageNameToFilename(longPackageName, FPackageName::GetAssetPackageExtension()) };
