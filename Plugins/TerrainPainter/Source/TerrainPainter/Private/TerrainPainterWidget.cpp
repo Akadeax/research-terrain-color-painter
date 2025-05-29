@@ -9,7 +9,10 @@
 #include "UObject/SavePackage.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "PropertyViewHelpers.h"
+#include "Algo/RemoveIf.h"
+#include "Algo/Unique.h"
 #include "Components/SizeBox.h"
+#include "Engine/Canvas.h"
 
 void UTerrainPainterWidget::NativePreConstruct()
 {
@@ -24,7 +27,14 @@ void UTerrainPainterWidget::NativePreConstruct()
 	});
 
 	SetupSinglePropertyView(this, ShowPreviewPV, GET_MEMBER_NAME_CHECKED(ThisClass, ShowPreview));
+	SetupSinglePropertyView(this, GraphModePV, GET_MEMBER_NAME_CHECKED(ThisClass, GraphMode));
 
+	SetupDetailsView(this, GraphDataDetailsView, {}, {
+		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainMapConnections),
+		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorPreset),
+		GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorSet),
+	});
+	
 	if (PreviewImage)
 	{
 		PreviewImageTexture = UTexture2D::CreateTransient(TextureSize.X, TextureSize.Y);
@@ -32,6 +42,12 @@ void UTerrainPainterWidget::NativePreConstruct()
 		
 		PreviewImage->SetBrushFromTexture(PreviewImageTexture, true);
 		UpdatePreviewTexture(true);
+	}
+
+	if (GraphImage)
+	{
+		UpdateGraphTexture();
+		GraphImage->SetBrushFromTexture(GraphImageTexture, true);
 	}
 }
 
@@ -43,6 +59,16 @@ void UTerrainPainterWidget::NativeConstruct()
 	{
 		BakeButton->OnClicked.AddDynamic(this, &ThisClass::OnBakeClicked);
 		CheckBakeEnabled();
+	}
+
+	if (CleanupGraphButton)
+	{
+		CleanupGraphButton->OnClicked.AddDynamic(this, &ThisClass::CleanupGraph);
+	}
+
+	if (ApplyGraphColoringButton)
+	{
+		ApplyGraphColoringButton->OnClicked.AddDynamic(this, &ThisClass::ApplyGraphColoring);
 	}
 }
 
@@ -136,15 +162,67 @@ void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TextureSize) ||
 			 changed == GET_MEMBER_NAME_CHECKED(ThisClass, GenerationData))
 	{
-		UpdatePreviewTexture();
+		if (ShowPreview) UpdatePreviewTexture();
+		if (GraphMode) UpdateGraphTexture();
 		CheckBakeEnabled();
 	}
 	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, ShowPreview))
 	{
-		PreviewImage->SetVisibility(ShowPreview ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		PreviewImage->SetVisibility(ShowPreview ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 		if (ShowPreview) UpdatePreviewTexture(true);
 	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, GraphMode))
+	{
+		const ESlateVisibility vis{ GraphMode ? ESlateVisibility::Visible : ESlateVisibility::Hidden };
+		GraphImage->SetVisibility(vis);
+		GraphDataDetailsView->SetVisibility(vis);
+		CleanupGraphButton->SetVisibility(vis);
+		
+		if (GraphMode) UpdateGraphTexture();
+	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TerrainMapConnections))
+	{
+		for (FTerrainMapConnection& conn : TerrainMapConnections)
+		{
+			if (conn.Element1 < 0) conn.Element1 = 0;
+			else if (conn.Element1 >= GenerationData.Num()) conn.Element1 = GenerationData.Num() - 1;
+			
+			if (conn.Element2 < 0) conn.Element2 = 0;
+			else if (conn.Element2 >= GenerationData.Num()) conn.Element2 = GenerationData.Num() - 1;
+		}
+		
+		UpdateGraphTexture();
+	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorSet))
+	{
+		TerrainColorPreset = ETerrainColorPreset::None;
+	}
+	else if (changed == GET_MEMBER_NAME_CHECKED(ThisClass, TerrainColorPreset))
+	{
+		switch (TerrainColorPreset)
+		{
+		case ETerrainColorPreset::None:
+			TerrainColorSet.Empty();
+			break;
+		case ETerrainColorPreset::Grassy:
+			TerrainColorSet = {
+				{ 1, 0, 0 },
+			};
+			break;
+		case ETerrainColorPreset::Magma:
+			TerrainColorSet = {
+				{ 0, 1, 0 },
+			};
+			break;
+		case ETerrainColorPreset::Alien:
+			TerrainColorSet = {
+				{ 0, 0, 1 },
+			};
+			break;
+		}
+	}
 }
+
 
 void UTerrainPainterWidget::CheckBakeEnabled()
 {
@@ -200,7 +278,7 @@ void UTerrainPainterWidget::UpdatePreviewTexture(bool forceAspectRecalc)
 		mip->BulkData.Unlock();
 	}
 
-	USizeBox* box{ Cast<USizeBox>(PreviewImage->GetParent()) };
+	USizeBox* box{ Cast<USizeBox>(ImageOverlay->GetParent()) };
 	if (box && (doResize || forceAspectRecalc))
 	{
 		const float aspect{ TextureSize.X / static_cast<float>(TextureSize.Y) };
@@ -247,6 +325,101 @@ void UTerrainPainterWidget::FillTextureWithTerrainColorMap(UTexture2D* texture)
 	texture->UpdateResource();
 }
 
+void UTerrainPainterWidget::UpdateGraphTexture()
+{
+	if (!GraphImageRT)
+	{
+		RecreateGraphTexture();
+	}
+	
+	const float texAspect{ static_cast<float>(TextureSize.X) / TextureSize.Y };
+	const float rtAspect{ GraphImageRT->GetSurfaceWidth() / GraphImageRT->GetSurfaceHeight() };
+	
+	// Tex exists, but aspect is wrong; recreate
+	if (!FMath::IsNearlyEqual(texAspect, rtAspect))
+	{
+		RecreateGraphTexture();
+	}
+
+	GraphImageRT->UpdateResource();
+
+	if (GraphImageTexture)
+	{
+		GraphImageTexture->ReleaseResource();
+	}
+	UTexture* tex{ GraphImageRT->ConstructTexture(
+		GetTransientPackage(),
+		TEXT("GraphImageTexture"),
+		RF_Transient
+	) };
+	GraphImageTexture = Cast<UTexture2D>(tex);
+	
+}
+
+void UTerrainPainterWidget::RecreateGraphTexture()
+{
+	if (GraphImageRT)
+	{
+		GraphImageRT->ReleaseResource();
+	}
+
+	const float texAspect{ static_cast<float>(TextureSize.X) / TextureSize.Y };
+	
+	GraphImageRT = UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(
+		this, UCanvasRenderTarget2D::StaticClass(),
+		FMath::FloorToInt32(256 * texAspect), 256
+	);
+	GraphImageRT->ClearColor = FColor(0, 0, 0, 0);
+
+	GraphImageRT->OnCanvasRenderTargetUpdate.AddDynamic(this, &ThisClass::DrawGraphTexture);
+}
+
+void UTerrainPainterWidget::DrawGraphTexture(UCanvas* Canvas, int32 Width, int32 Height)
+{
+	if (GenerationData.IsEmpty()) return;
+	
+	for (const FTerrainMapGenerationDataEntry& data : GenerationData)
+	{
+		FVector2D pos{ data.UVCoordinates.X * Width, data.UVCoordinates.Y * Height };
+		DrawDebugCanvas2DCircle(Canvas, pos, 10, 10, FLinearColor::White);
+		DrawDebugCanvas2DCircle(Canvas, pos, 12, 10, FLinearColor::Black);
+	}
+	
+	for (const FTerrainMapConnection& conn : TerrainMapConnections)
+	{
+		if (conn.Element1 == conn.Element2 ||
+			conn.Element1 < 0 || conn.Element2 < 0 ||
+			conn.Element1 >= GenerationData.Num() ||
+			conn.Element2 >= GenerationData.Num())
+		{
+			continue;
+		}
+		
+		const FVector2f uv1{ GenerationData[conn.Element1].UVCoordinates };
+		const FVector2f uv2{ GenerationData[conn.Element2].UVCoordinates };
+		const FVector2D pos1{ uv1.X * Width, uv1.Y * Height };
+		const FVector2D pos2{ uv2.X * Width, uv2.Y * Height };
+		DrawDebugCanvas2DLine(Canvas, pos1, pos2, FLinearColor::White);
+	}
+}
+
+void UTerrainPainterWidget::CleanupGraph()
+{
+	TArray<FTerrainMapConnection> newArray{};
+	for (FTerrainMapConnection& conn : TerrainMapConnections)
+	{
+		if (conn.Element1 == conn.Element2) continue;
+		if (conn.Element1 > conn.Element2) conn.Swap();
+		newArray.AddUnique(conn);
+	}
+	TerrainMapConnections = newArray;
+}
+
+void UTerrainPainterWidget::ApplyGraphColoring()
+{
+	
+}
+
 FColor UTerrainPainterWidget::ComputeColorForPixel(int32 X, int32 Y)
 {
 	if (GenerationData.IsEmpty()) return ComputeCheckerboard(X, Y);	
@@ -283,5 +456,6 @@ FColor UTerrainPainterWidget::ComputeWeightedTerrainColor(int32 X, int32 Y)
 		result += data.Color * invNormDist * data.Intensity;
 	}
 	result = NormalizeToMax(result);
+	result.A = 1.f;
 	return result.ToFColor(false);
 }

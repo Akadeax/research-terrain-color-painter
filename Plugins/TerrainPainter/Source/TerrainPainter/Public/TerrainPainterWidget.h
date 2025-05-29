@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "Editor/Blutility/Classes/EditorUtilityWidget.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
 #include "Components/SinglePropertyView.h"
+#include "Engine/CanvasRenderTarget2D.h"
 #include "TerrainPainterWidget.generated.h"
 
 class UCanvasRenderTarget2D;
@@ -30,6 +32,36 @@ struct FTerrainMapGenerationDataEntry
 	float DistanceModifier{ 1.f };
 };
 
+USTRUCT(BlueprintType)
+struct FTerrainMapConnection
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditInstanceOnly, meta=(ClampMin=0)) int Element1{};
+	UPROPERTY(EditInstanceOnly, meta=(ClampMin=0)) int Element2{};
+
+	bool operator==(const FTerrainMapConnection& other) const
+	{
+		return (Element1 == other.Element1 && Element2 == other.Element2) || (Element1 == other.Element2 && Element2 == other.Element1);
+	}
+
+	void Swap()
+	{
+		const int temp{ Element1 };
+		Element1 = Element2;
+		Element2 = temp;
+	}
+};
+
+UENUM(BlueprintType)
+enum class ETerrainColorPreset : uint8
+{
+	None,
+	Grassy,
+	Magma,
+	Alien
+};
+
 UCLASS()
 class TERRAINPAINTER_API UTerrainPainterWidget : public UEditorUtilityWidget
 {
@@ -43,22 +75,43 @@ public:
 	UButton* BakeButton;
 
 	UPROPERTY(meta=(BindWidget))
+	UOverlay* ImageOverlay;
+	
+	UPROPERTY(meta=(BindWidget))
 	UImage* PreviewImage;
 
 	UPROPERTY(meta=(BindWidget))
+	UImage* GraphImage;
+
+	UPROPERTY(meta=(BindWidget))
 	USinglePropertyView* ShowPreviewPV;
+
+	UPROPERTY(meta=(BindWidget))
+	USinglePropertyView* GraphModePV;
+	
+	UPROPERTY(meta=(BindWidget))
+	UDetailsView* GraphDataDetailsView;
+
+	UPROPERTY(meta=(BindWidget))
+	UButton* CleanupGraphButton;
+
+	UPROPERTY(meta=(BindWidget))
+	UButton* ApplyGraphColoringButton; 
+
 
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	
 protected:
+	// Property View Props
+	// Editor
 	UPROPERTY(EditDefaultsOnly, Category=TextureDetails)
 	FDirectoryPath TerrainColorOutputDirectory{ "/Game/" };
 	
 	UPROPERTY(EditDefaultsOnly, Category=TextureDetails)
 	FString TerrainColorOutputAssetName{ "T_TerrainColorMap" };
 	
-	UPROPERTY(EditDefaultsOnly, Category=TextureDetails, meta=(UIMin=32, UIMax=8192, ClampMin=32, ClampMax=8192))
+	UPROPERTY(EditDefaultsOnly, Category=TextureDetails, meta=(UIMin=32, UIMax=4096, ClampMin=32, ClampMax=4096, FixedIncrement=32))
 	FIntPoint TextureSize{ 512, 512 };
 	
 	UPROPERTY(EditDefaultsOnly, Category=GenerationData)
@@ -66,17 +119,38 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly) bool ShowPreview{ true };
 
-	UPROPERTY() UTexture2D* PreviewImageTexture{};
+	// Graphing
+	UPROPERTY(EditDefaultsOnly)
+	bool GraphMode{ true };
 	
-	UFUNCTION() void OnBakeClicked();
+	UPROPERTY(EditDefaultsOnly, Category=GraphData)
+	TArray<FTerrainMapConnection> TerrainMapConnections{};
 
-	TTuple<bool, FString> TryBakeTexture();
+	UPROPERTY(EditDefaultsOnly, Category=GraphData)
+	TArray<FLinearColor> TerrainColorSet{};
+
+	UPROPERTY(EditDefaultsOnly, Category=GraphData)
+	ETerrainColorPreset TerrainColorPreset{};
 	
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// Props
+	UPROPERTY() UTexture2D* PreviewImageTexture{};
+	UPROPERTY() UCanvasRenderTarget2D* GraphImageRT{};
+	UPROPERTY() UTexture2D* GraphImageTexture{};
+
+	// Methods
+	UFUNCTION() void OnBakeClicked();
 	void CheckBakeEnabled();
 	bool InputParametersValid() const;
-
+	TTuple<bool, FString> TryBakeTexture();
+	
 	void UpdatePreviewTexture(bool forceAspectRecalc = false);
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	void UpdateGraphTexture();
+	void RecreateGraphTexture();
+	UFUNCTION() void DrawGraphTexture(UCanvas* Canvas, int32 Width, int32 Height);
+	UFUNCTION() void CleanupGraph();
+	UFUNCTION() void ApplyGraphColoring();
 	
 	/**
 	 * Creates a texture and paints the terrain color on it. This must be both repackaged and object flags must be set.
