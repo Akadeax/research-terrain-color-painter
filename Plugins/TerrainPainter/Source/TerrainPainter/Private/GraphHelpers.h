@@ -13,10 +13,10 @@ struct FTerrainGraphNode
 	UPROPERTY(EditInstanceOnly)
 	FLinearColor Color{ 1.f, 1.f, 1.f };
 	
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
+	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=3))
 	float Intensity{ 1.f };
 	
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
+	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=1.5f))
 	float DistanceModifier{ 1.f };
 
 	bool operator==(const FTerrainGraphNode& rhs) const

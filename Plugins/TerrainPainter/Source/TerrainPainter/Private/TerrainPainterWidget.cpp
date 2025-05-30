@@ -413,7 +413,8 @@ void UTerrainPainterWidget::RecreateGraphTexture()
 	}
 
 	const float texAspect{ static_cast<float>(TextureSize.X) / TextureSize.Y };
-	
+	// We want the graph texture on top not to reach e.g. 8192x8192, it's not needed and slows us down a lot
+	// So keep this the same aspect as the color texture, but smaller
 	GraphImageRT = UCanvasRenderTarget2D::CreateCanvasRenderTarget2D(
 		this, UCanvasRenderTarget2D::StaticClass(),
 		FMath::FloorToInt32(512 * texAspect), 512
@@ -429,6 +430,8 @@ void UTerrainPainterWidget::DrawGraphTexture(UCanvas* Canvas, int32 Width, int32
 
 	for (const FTerrainGraphConnection& conn : TerrainMapConnections)
 	{
+		// Don't draw this connection if it's corrupt; our meta should prevent this from even getting here,
+		// but doesn't seem to first frame
 		if (conn.Element1 == conn.Element2 ||
 			conn.Element1 < 0 || conn.Element2 < 0 ||
 			conn.Element1 >= GenerationData.Num() ||
@@ -436,7 +439,8 @@ void UTerrainPainterWidget::DrawGraphTexture(UCanvas* Canvas, int32 Width, int32
 		{
 			continue;
 		}
-		
+
+		// Draw line from 1-2 with black backdrop
 		const FVector2f uv1{ GenerationData[conn.Element1].UVCoordinates };
 		const FVector2f uv2{ GenerationData[conn.Element2].UVCoordinates };
 		const FVector2D pos1{ uv1.X * Width, uv1.Y * Height };
@@ -472,6 +476,7 @@ void UTerrainPainterWidget::DrawGraphTexture(UCanvas* Canvas, int32 Width, int32
 	}
 }
 
+// Remove duplicate connections, order connections by node
 void UTerrainPainterWidget::CleanupGraph()
 {
 	TArray<FTerrainGraphConnection> newArray{};
@@ -488,13 +493,15 @@ void UTerrainPainterWidget::CleanupGraph()
 void UTerrainPainterWidget::ApplyGraphColoring()
 {
 	CleanupGraph();
-	
+
+	// Create helper object to apply color
 	GraphHelper helper(GenerationData, TerrainMapConnections, TerrainColorSet);
 	helper.ColorGraph(GraphColoringAlgorithm);
 
 	UpdatePreviewTexture();
 }
 
+// Budget pixel shader calculations
 FColor UTerrainPainterWidget::ComputeColorForPixel(int32 X, int32 Y)
 {
 	if (GenerationData.IsEmpty()) return ComputeCheckerboard(X, Y);	
@@ -518,6 +525,7 @@ FColor UTerrainPainterWidget::ComputeCheckerboard(int32 X, int32 Y)
 FColor UTerrainPainterWidget::ComputeWeightedTerrainColor(int32 X, int32 Y)
 {
 	const FVector2f uv{ static_cast<float>(X) / static_cast<float>(TextureSize.X), static_cast<float>(Y) / static_cast<float>(TextureSize.Y) };
+	// In UV space, sqrt(2) is the maximum dist between 2 points
 	constexpr float MAX_UV_DIST{ 1.414213f };
 	
 	FLinearColor result{};
