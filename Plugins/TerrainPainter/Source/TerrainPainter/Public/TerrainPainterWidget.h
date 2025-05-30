@@ -2,65 +2,32 @@
 
 #pragma once
 
+#include "EditorUtilityWidgetComponents.h"
 #include "CoreMinimal.h"
 #include "Editor/Blutility/Classes/EditorUtilityWidget.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/SinglePropertyView.h"
 #include "Engine/CanvasRenderTarget2D.h"
+#include "GraphHelpers.h"
 #include "TerrainPainterWidget.generated.h"
 
 class UCanvasRenderTarget2D;
 class UButton;
 class UDetailsView;
 
-USTRUCT(BlueprintType)
-struct FTerrainMapGenerationDataEntry
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=1))
-	FVector2f UVCoordinates{ 0.5f, 0.5f };
-	
-	UPROPERTY(EditInstanceOnly)
-	FLinearColor Color{ 1.f, 1.f, 1.f };
-	
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
-	float Intensity{ 1.f };
-	
-	UPROPERTY(EditInstanceOnly, meta=(UIMin=0, UIMax=2))
-	float DistanceModifier{ 1.f };
-};
-
-USTRUCT(BlueprintType)
-struct FTerrainMapConnection
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditInstanceOnly, meta=(ClampMin=0)) int Element1{};
-	UPROPERTY(EditInstanceOnly, meta=(ClampMin=0)) int Element2{};
-
-	bool operator==(const FTerrainMapConnection& other) const
-	{
-		return (Element1 == other.Element1 && Element2 == other.Element2) || (Element1 == other.Element2 && Element2 == other.Element1);
-	}
-
-	void Swap()
-	{
-		const int temp{ Element1 };
-		Element1 = Element2;
-		Element2 = temp;
-	}
-};
 
 UENUM(BlueprintType)
 enum class ETerrainColorPreset : uint8
 {
 	None,
 	Grassy,
+	Swamp,
+	Steppe,
 	Magma,
-	Alien
+	Alien,
 };
+
 
 UCLASS()
 class TERRAINPAINTER_API UTerrainPainterWidget : public UEditorUtilityWidget
@@ -90,6 +57,9 @@ public:
 	USinglePropertyView* GraphModePV;
 	
 	UPROPERTY(meta=(BindWidget))
+	UEditorUtilityScrollBox* GraphScrollBox;
+	
+	UPROPERTY(meta=(BindWidget))
 	UDetailsView* GraphDataDetailsView;
 
 	UPROPERTY(meta=(BindWidget))
@@ -115,7 +85,7 @@ protected:
 	FIntPoint TextureSize{ 512, 512 };
 	
 	UPROPERTY(EditDefaultsOnly, Category=GenerationData)
-	TArray<FTerrainMapGenerationDataEntry> GenerationData{};
+	TArray<FTerrainGraphNode> GenerationData{};
 
 	UPROPERTY(EditDefaultsOnly) bool ShowPreview{ true };
 
@@ -124,13 +94,16 @@ protected:
 	bool GraphMode{ true };
 	
 	UPROPERTY(EditDefaultsOnly, Category=GraphData)
-	TArray<FTerrainMapConnection> TerrainMapConnections{};
+	TArray<FTerrainGraphConnection> TerrainMapConnections{};
 
 	UPROPERTY(EditDefaultsOnly, Category=GraphData)
 	TArray<FLinearColor> TerrainColorSet{};
 
 	UPROPERTY(EditDefaultsOnly, Category=GraphData)
 	ETerrainColorPreset TerrainColorPreset{};
+
+	UPROPERTY(EditDefaultsOnly, Category=GraphData)
+	EGraphColoringAlgo GraphColoringAlgorithm{};
 	
 	// Props
 	UPROPERTY() UTexture2D* PreviewImageTexture{};
@@ -161,4 +134,7 @@ protected:
 	FColor ComputeColorForPixel(int32 X, int32 Y);
 	FColor ComputeCheckerboard(int32 X, int32 Y);
 	FColor ComputeWeightedTerrainColor(int32 X, int32 Y);
+
+	static const TMap<ETerrainColorPreset, TArray<FLinearColor>> TerrainColorPresets;
 };
+
