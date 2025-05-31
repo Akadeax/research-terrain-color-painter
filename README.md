@@ -1,19 +1,17 @@
 # Terrain Color Painter: Coloring Terrain using Graph Coloring Algorithms
 
-## ToC
-- [Terrain Color Painter: Coloring Terrain using Graph Coloring Algorithms](#terrain-color-painter-coloring-terrain-using-graph-coloring-algorithms)
-	- [ToC](#toc)
-	- [Abstract](#abstract)
-	- [Implementation: The Tool](#implementation-the-tool)
-		- [Texture Generation](#texture-generation)
-	- [Concepts: Graph Coloring](#concepts-graph-coloring)
-		- [Greedy Coloring](#greedy-coloring)
-		- [Welsh-Powell Algorithm](#welsh-powell-algorithm)
-		- [DSatur](#dsatur)
-	- [Implementation: Graph Coloring](#implementation-graph-coloring)
-	- [Tool: Potential Improvements](#tool-potential-improvements)
-	- [Conclusion](#conclusion)
-	- [Sources \& References](#sources--references)
+## Table of Contents
+- [Abstract](#abstract)
+- [Implementation: The Tool](#implementation-the-tool)
+	- [Texture Generation](#texture-generation)
+- [Concepts: Graph Coloring](#concepts-graph-coloring)
+	- [Greedy Coloring](#greedy-coloring)
+	- [Welsh-Powell Algorithm](#welsh-powell-algorithm)
+	- [DSatur](#dsatur)
+- [Implementation: Graph Coloring](#implementation-graph-coloring)
+- [Tool: Potential Improvements](#tool-potential-improvements)
+- [Conclusion](#conclusion)
+- [Sources \& References](#sources--references)
 
 
 ## Abstract
