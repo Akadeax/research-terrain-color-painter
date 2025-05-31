@@ -241,6 +241,7 @@ void UTerrainPainterWidget::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		const ESlateVisibility vis{ GraphMode ? ESlateVisibility::Visible : ESlateVisibility::Collapsed };
 		GraphScrollBox->SetVisibility(vis);
+		GraphImage->SetVisibility(vis);
 		
 		if (GraphMode) UpdateGraphTexture();
 	}
