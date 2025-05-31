@@ -64,7 +64,7 @@ After figuring that out, along with how to blend the texture with a simple grass
 <br>
 <sub>*The texture applied to a piece of heightmap terrain generated in blender; heightmap is of [this](https://manticorp.github.io/unrealheightmap/#latitude/49.80963156356313/longitude/2.724609375/zoom/7/outputzoom/13/width/8129/height/8129) location, © <a href="https://www.mapzen.com/rights">Mapzen</a>,  <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> , and <a href="https://www.mapzen.com/rights/#services-and-data-sources">others</a>.*</sub>
 
-So far so good. Let's get to actually generating texture we *want* to display.
+So far so good. Let's get to actually generating textures we *want* to display.
 
 ### Texture Generation
 
@@ -86,13 +86,13 @@ In reality, there are extra factors to configure for each point, namely the `Dis
 
 - Intensity multiplies the amount of weight the point's color has on the pixels within it's radius
 
-Combining both of these in practice results in an editor window like this:
+Combining these in practice results in an editor window like this:
 
 ![Image of Initial Editor Window](./RepoIMG/ref_first_editor.jpg)
 <br>
 <sub>*The 'Show Preview' toggle exists here to prevent stutters; changing values on a high-resolution while the preview is enabled will regenerate the texture for every change, which might cause lag on lower-end machines.*</sub>
 
-Now you can see each point we can place on the texture is defined by:
+Now each point we can place on the texture is defined by:
 - UV Coordinates
 - Color
 - Intensity
@@ -126,7 +126,7 @@ While certainly having a blazing fast time complexity of $O(n)$<sup>[1]</sup>, t
 
 ![Image of Crown Graph](./RepoIMG/ref_greedy_colouring.jpg)
 <br>
-<sub>*For crown graphs greedy coloring may use $\frac{V}{2}$ colors, with the cromatic number being $2$*</sub>
+<sub>*For crown graphs greedy coloring may use V/2 colors, with the cromatic number being 2*</sub>
 
 ### Welsh-Powell Algorithm
 Welsh and Powell found that ordering the vertices by Degree first and then running greedy coloring produces significantly better results. This ordering results in the algorithm still being $O(n)$, but the graph uses at most $\max_i \min\{ d(x_i) + 1,\ i \}$ colors, so 1 more color than the maximum vertex degree of the graph.
@@ -156,7 +156,7 @@ You may switch which implementation of graph coloring is running using the **Gra
 ## Tool: Potential Improvements
 1. The tool could allow for texture blending in addition to color blending; each vertex would be assigned a texture that ends up being considered for each pixel at editor-time with it's weight
 
-2. The color baking, preview creation, and graph texture generation should most certainly be done in a compute shader instead of a blocking, single-threaded CPU loop. This would significantly improve editor performance, which can heavily dip at texture above a resolution $1024^{2}$
+2. The color baking, preview creation, and graph texture generation should most certainly be done in a compute shader instead of a blocking, single-threaded CPU loop. This would significantly improve editor performance, which can heavily dip with textures above a resolution $1024^{2}$
 
 
 ## Conclusion
