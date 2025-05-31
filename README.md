@@ -50,8 +50,6 @@ FColor UTerrainPainter::ComputeColorForPixel(int32 X, int32 Y)
 }
 ```
 
-Yes, this could be a compute shader instead. Because the baking is a one-time
-
 This draws a red-to-white corner-to-corner gradient directly onto the first mip of the texture, resulting in this texture:
 
 ![Image of Starter Gradient Texture](./RepoIMG/ref_starter_texture.png)
